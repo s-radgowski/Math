@@ -404,6 +404,19 @@ def DirectionalDerivative(function, vector: Vector, point, dimensions=3):
     print(f"{nabla} {italic}f{reset}{point} • {bold}u{reset} = {dd}")
     return dd
 
+def DoubleInterval(function, limits=None):
+    i_x = function.partial_integrate("x", 1)
+    if limits is not None:
+        x_min = limits[0][0]
+        x_max = limits[0][1]
+        i_x = i_x.evaluate(x_max, "x") - i_x.evaluate(x_min, "x")
+    i_y = i_x.partial_integrate("y", 1)
+    if limits is not None:
+        y_min = limits[1][0]
+        y_max = limits[1][1]
+        i_y = i_y.evaluate(y_max, "y") - i_y.evaluate(y_min, "y")
+    return i_y
+
 
 if __name__ == "__main__":
     e1 = ExpTerm()
@@ -412,9 +425,9 @@ if __name__ == "__main__":
     s2 = Sum([e1, trig1, log1])
     #Gradient(s2)
 
-    t1 = PolyTerm(1, 2)
-    t2 = PolyTerm(1, 3, variable="y")
-    t3 = PolyTerm(-4, 1, variable="y")
-    fn = Sum([Product([t1, t2]), t3])
-    DirectionalDerivative(fn, Vector([2, 5]), (2, -1), dimensions=2)
+    t1 = PolyTerm(1, 1, variable="x")
+    t2 = Product([PolyTerm(1, 1, variable="y"), PolyTerm(1, 1, variable="z")])
+    t3 = LogTerm(inner=t2)
+    p = Product([t1, t3])
+    Gradient(p)
     

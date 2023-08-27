@@ -250,6 +250,18 @@ class Constant(Term):
         else:
             return PolyTerm(self.val, 1).integrate(n - 1)
     
+    """Takes the nth integral of term with respect to var."""
+    def partial_integrate(self, var, n):
+        # Base case
+        if n == 0:
+            return self
+        elif self.val == 0:
+            return Constant(0)
+        elif n == 1:
+            return PolyTerm(self.val, 1, variable=var)
+        else:
+            return PolyTerm(self.val, 1, variable=var).integrate(n - 1)
+
     def evaluate(self, x):
         return self.val
 
@@ -288,7 +300,7 @@ class Variable(Term):
     def __repr__(self):
         return self.__str__()
     
-    def __str__(self, var="x"):
+    def __str__(self):
         return yellow + self.name + reset
 
     def is_constant(self):
@@ -341,11 +353,25 @@ class Product(Term):
             
             elif isinstance(t, PolyTerm):
                 if t.inner is None:
+                    self.poly.coeff *= t.coeff
                     if t.variable == self.poly.variable:
-                        self.poly.coeff *= t.coeff
                         self.poly.exp += t.exp
                     else:
+                        t.coeff = 1
                         self.other_polys.append(t)
+
+                elif isinstance(t.inner, Product):
+                    for t2 in t.inner.terms():
+                        if isinstance(t2, PolyTerm):
+                            if t2.variable == self.poly.variable:
+                                self.poly.exp += (t2.exp * t.exp)
+                            else:
+                                t2.exp *= t.exp
+                                self.other_polys.append(t2)
+                        else:
+                            new_p = PolyTerm(1, t.exp, inner=t2)
+                            self.other.append(new_p)
+
                 elif isinstance(t.inner, TrigTerm):
                     self.poly.coeff *= t.coeff
                     if t.exp == 1:
@@ -406,6 +432,27 @@ class Product(Term):
 
             elif isinstance(t, LogTerm):
                 self.logs.append(t)
+
+        # Clean up other variables
+        removes = []
+        adds = []
+        if len(self.other_polys) > 1:
+            for i, o1 in enumerate(self.other_polys[:-1]):
+                v1 = o1.variable
+                for j, o2 in enumerate(self.other_polys[i + 1:]):
+                    if j not in removes:
+                        v2 = o2.variable
+                        if v1 == v2:
+                            new_v = PolyTerm(1, o1.exp + o2.exp, variable=v1)
+                            if (o1.exp + o2.exp != 0):
+                                adds.append(new_v)
+                            removes.append(i)
+                            removes.append(i + j + 1)
+        
+        removes.sort()
+        for i in removes[::-1]:
+            del self.other_polys[i]
+        self.other_polys.extend(adds)
 
         if self.poly.coeff == 0:
             self.trig = []
@@ -507,7 +554,7 @@ class Product(Term):
             full_str = "-"
         else:
             full_str = self.poly.__str__()
-        
+
         for t in self.other_polys:
             full_str = full_str + t.__str__()
 
@@ -674,7 +721,7 @@ class Product(Term):
         return s.derive(n - 1)
 
     """Takes the nth derivative of the product with respect to val."""
-    def partial(self, val, n):
+    def partial(self, var, n):
         # Base case
         if n == 0:
             return self
@@ -682,7 +729,7 @@ class Product(Term):
         relevant_terms = []
         other_terms = []
         for term in self.terms():
-            if term.is_function_of(val):
+            if term.is_function_of(var):
                 relevant_terms.append(term)
             else:
                 other_terms.append(term)
@@ -694,7 +741,8 @@ class Product(Term):
             relevant = Product(relevant_terms)
         else:
             relevant = relevant_terms[0]
-        relevant_deriv = relevant.derive(n)
+
+        relevant_deriv = relevant.partial(var, n)
         other_terms.extend([relevant_deriv])
         return Product(other_terms)
 
@@ -904,6 +952,35 @@ class Product(Term):
             else:
                 return None
 
+    """Takes the nth integral of the product with respect to val."""
+    def partial_integrate(self, var, n):
+        # Base case
+        if n == 0:
+            return self
+        
+        relevant_terms = []
+        other_terms = []
+        for term in self.terms():
+            if term.is_function_of(var):
+                relevant_terms.append(term)
+            else:
+                other_terms.append(term)
+        
+        if len(relevant_terms) == 0:
+            return Product([other_terms, PolyTerm(1, 1, variable=var)])
+
+        if len(relevant_terms) > 1:
+            relevant = Product(relevant_terms)
+        else:
+            relevant = relevant_terms[0]
+        relevant_int = relevant.partial_integrate(var, n)
+
+        # Strip constant from sum
+        if isinstance(relevant_int, Sum) and (len(relevant_int.terms) == 2):
+            relevant_int = relevant_int.terms[0]
+        other_terms.extend([relevant_int])
+        return Product(other_terms)
+
     def evaluate(self, x):
         p = 1
         for t in self.terms():
@@ -1084,7 +1161,7 @@ class PolyTerm(Term):
                 c = str(round(self.coeff, decimals))
             else:
                 c = str(self.coeff)
-        
+
         if self.inner is None:
             if self.exp == 1:
                 return f"{c}{blue}{self.variable}{reset}"
@@ -1105,9 +1182,9 @@ class PolyTerm(Term):
 
         else:
             if self.exp == 1:
-                return f"{c}{self.inner.__str__(self.variable)}"
+                return f"{c}{self.inner.__str__()}"
             else:
-                return f"{c}({self.inner.__str__(self.variable)}){''.join(ex_str)}"
+                return f"{c}({self.inner.__str__()}){''.join(ex_str)}"
     
     def __repr__(self):
         return self.__str__()
@@ -1268,7 +1345,47 @@ class PolyTerm(Term):
                 pass
             else:
                 return LogTerm(inner=self.inner).integrate(n - 1)
-    
+
+    """Takes the nth integral of the term"""
+    def partial_integrate(self, var, n):
+        # Base case: 0th integral
+        if n == 0:
+            return self
+
+        elif (self.inner is None) and (self.variable == var):
+            if self.exp == 0:
+                p = PolyTerm(self.coeff, 1, variable=var)
+                s = Sum([p, Variable("C")])
+                return s.partial_integrate(var, n - 1)
+
+            elif self.exp == -1:
+                l = LogTerm()
+                p = PolyTerm(self.coeff, 1, inner=l, variable=var)
+                s = Sum([p, Variable("C")])
+                return s.partial_integrate(var, n - 1)
+
+            else:
+                p = PolyTerm(self.coeff / (self.exp + 1), self.exp + 1, variable=var)
+                s = Sum([p, Variable("C")])
+                return s.partial_integrate(var, n - 1)
+            
+        elif not self.is_function_of(var):
+            return Product([self, PolyTerm(1, 1, variable=var)]).partial_integrate(var, n - 1)
+
+        # U-Sub...(?)
+        elif (self.variable == var):
+            # Common integrals
+            if (self.exp == 2) and (self.inner == TrigTerm("sec", inner=None)):
+                if (self.inner.variable == var):
+                    return TrigTerm("tan").integrate(n - 1)
+            elif (self.exp == 2) and (self.inner == TrigTerm("csc", inner=None)):
+                return Product([Constant(-1), TrigTerm("cot")]).integrate(n - 1)
+
+            elif self.exp > 1:
+                pass
+            else:
+                return LogTerm(inner=self.inner).integrate(n - 1)
+
     """Solves algebraically this = opposite."""
     def solve(self, opposite):
         o = opposite / self.coeff
@@ -1585,6 +1702,59 @@ class TrigTerm(Term):
                 s = Sum([l, Variable("C")])
                 return s.integrate(n - 1)
 
+    """Takes the nth integral of the term with respect to var"""
+    def partial_integrate(self, var, n):
+        # Base case: no integral
+        if n == 0:
+            return self
+
+        if (self.inner is None) and (self.variable == var):
+            if self.fn == "sin":
+                t = TrigTerm("cos", inner=None)
+                p = PolyTerm(-1, 1, inner=t)
+                s = Sum([p, Variable("C")])
+                return s.integrate(n - 1)
+
+            elif self.fn == "cos":
+                t = TrigTerm("sin", inner=None)
+                s = Sum([t, Variable("C")])
+                return s.integrate(n - 1)
+
+            elif self.fn == "tan":
+                t = TrigTerm("sec", inner=None)
+                l = LogTerm(inner=t)
+                s = Sum([l, Variable("C")])
+                return s.integrate(n - 1)
+
+            elif self.fn == "csc":
+                t1 = TrigTerm("csc", inner=None)
+                t2 = TrigTerm("cot", inner=None)
+                t3 = PolyTerm(-1, 0, inner=t2)
+                s = Sum([t1, t3])
+                l = LogTerm(inner=s)
+                s2 = Sum([l, Variable("C")])
+                return s2.integrate(n - 1)
+            
+            elif self.fn == "sec":
+                t1 = TrigTerm("tan", inner=None)
+                t2 = TrigTerm("sec", inner=None)
+                s = Sum([t1, t2])
+                l = LogTerm(inner=s)
+                s2 = Sum([l, Variable("C")])
+                return s2.integrate(n - 1)
+
+            elif self.fn == "cot":
+                t = TrigTerm("sin", inner=None)
+                l = LogTerm(inner=t)
+                s = Sum([l, Variable("C")])
+                return s.integrate(n - 1)
+            
+        elif (self.inner is None) and (self.variable != var):
+            return Product([self, PolyTerm(1, 1, variable=var)])
+        
+        elif (not self.is_function_of(var)):
+            return Product([self, PolyTerm(1, 1, variable=var)])
+
     """Solves algebraically this = opposite."""
     def solve(self, opposite):
         if self.fn == "sin":
@@ -1824,7 +1994,8 @@ class LogTerm(Term):
             g_prime = g.partial(var, 1)
             f = copy.deepcopy(self)
             f.inner = None
-            f_prime = f.partial(var, 1)
+            f_prime = f.derive(1)
+            f_prime.inner = self.inner
             if isinstance(f_prime, Sum):
                 for i, t in enumerate(f_prime.terms):
                     f_prime.terms[i].inner = self.inner
@@ -1838,9 +2009,8 @@ class LogTerm(Term):
                     f_prime.others[i].inner = self.inner
             elif isinstance(f_prime, PolyTerm):
                 f_prime.inner.inner = self.inner
-            else:
-                f_prime.inner = self.inner
-            p = Product([f_prime, g_prime])
+
+            p = f_prime * g_prime
             return p.partial(var, n - 1)
 
     """Takes the nth integral of the term"""
@@ -1853,6 +2023,24 @@ class LogTerm(Term):
             p = Product([PolyTerm(1, 1), LogTerm()])
             s = Sum([p, PolyTerm(1, 1), Variable("C")])
             return s
+
+        # U-Sub...(?)
+        else:
+            pass
+    
+    """Takes the nth integral of the term with respect to var"""
+    def partial_integrate(self, var, n):
+        # Base case: 0th integral
+        if n == 0:
+            return self
+
+        elif (self.inner is None) and (self.variable == var):
+            p = Product([PolyTerm(1, 1), LogTerm()])
+            s = Sum([p, PolyTerm(1, 1), Variable("C")])
+            return s
+        
+        elif (self.inner is None) and (self.variable != var):
+            return Product([self, PolyTerm(1, 1, variable=var)])
 
         # U-Sub...(?)
         else:
@@ -2151,6 +2339,36 @@ class ExpTerm(Term):
                 else:
                     pass
     
+    """Takes the nth partial integral of the term with respect to var"""
+    def partial_integrate(self, var, n):
+        # Base case: 0th integral
+        if n == 0:
+            return self
+
+        elif (self.inner is None) and (self.variable == var):         
+            if self.base == "e":
+                c = copy.deepcopy(self)
+                return c.integrate(n - 1)
+            
+            else:
+                coeff = 1 / math.log(self.base)
+                term = Product([Constant(coeff), self])
+                return term.integrate(n - 1)
+            
+        elif (self.inner is None) and (self.variable != var):
+            return Product([self, PolyTerm(1, 1, variable=var)]).partial_integrate(var, n - 1)
+
+        # U-Sub...(?)
+        else:
+            if self.base == "e" and isinstance(self.inner, PolyTerm):
+                if (self.inner.exp == 1) and (self.inner.is_function_of(var)):
+                    p = PolyTerm(1 / self.inner.coeff, 1, inner=self)
+                    return p.partial_integrate(var, n - 1)
+                elif (self.inner.exp == 1) and (not self.inner.is_function_of(var)):
+                    return Product([self, PolyTerm(1, 1, variable=var)]).partial_integrate(var, n - 1)
+                else:
+                    pass
+    
     """Solves algebraically this = opposite."""
     def solve(self, opposite):
         if self.base == "e":
@@ -2325,7 +2543,7 @@ class Sum(Term):
     
     """Takes the nth integral of the sum"""
     def integrate(self, n):
-        # Base case: no derivative
+        # Base case: no integral
         if n == 0:
             return self
 
@@ -2337,6 +2555,19 @@ class Sum(Term):
         s.tidy()
         return s
     
+    """Takes the integral of the sum with respect to var"""
+    def partial_integrate(self, var, n):
+        # Base case: no integral
+        if n == 0:
+            return self
+
+        terms = self.terms
+        terms = [t.partial_integrate(var, n) for t in terms]
+        terms.append(Variable("C"))
+        s = Sum(terms)
+        s.tidy()
+        return s
+
     def evaluate(self, x):
         total = 0
         for t in self.terms:
@@ -2422,14 +2653,9 @@ if __name__ == "__main__":
     p = Product([x, dv])
     p.integral()
 
-    print()
-    t1 = TrigTerm("sec")
-    t2 = TrigTerm("tan")
-    p2 = Product([t1, t2])
-    p2.integral()
-    p2.derivative()
+    t2 = PolyTerm(1, 3)
+    t3 = PolyTerm(1, 1, variable="y")
+    p = Product([t2, t3])
 
-    print()
-    c = PolyTerm(1, 2, inner=TrigTerm("csc"))
-    c.derivative()
-    c.integral()
+    print(p)
+    print(p.partial_integrate("y", 1))
