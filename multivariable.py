@@ -166,24 +166,24 @@ class Vector():
         if self.dimensions == 2:
             t1 = vals_text[0] + bold + teal + "i " + reset
             t2 = vals_text[1] + bold + teal + "j" + reset
-            if self.vals[1] >= 0:
-                return f"{t1} + {t2}"
-            else:
+            if self.vals[1].is_constant() and self.vals[1] < 0:
                 return f"{t1} {t2}"
+            return f"{t1} + {t2}"
+
         elif self.dimensions == 3:
             t1 = vals_text[0] + bold + teal + "i " + reset
             t2 = vals_text[1] + bold + teal + "j " + reset
             t3 = vals_text[2] + bold + teal + "k" + reset
             result = t1
-            if self.vals[1] >= 0:
-                result += f"+ {t2}"
-            else:
+            if self.vals[1].is_constant() and self.vals[1] < 0:
                 result += f" {t2}"
-            
-            if self.vals[2] >= 0:
-                result += f"+ {t3}"
             else:
+                result += f"+ {t2}"
+            
+            if self.vals[2].is_constant() and self.vals[2] < 0:
                 result += f" {t3}"
+            else:
+                result += f"+ {t3}"
             return result
         else:
             pass
@@ -363,7 +363,7 @@ class Vector():
         return Vector(terms)
 
 
-def Gradient(function, dimensions=3):
+def Gradient(function, dimensions=3) -> Vector:
     if isinstance(function, Vector):
         raise TypeError("Can only take gradient of scalar function.")
     
@@ -417,6 +417,45 @@ def DoubleInterval(function, limits=None):
         i_y = i_y.evaluate(y_max, "y") - i_y.evaluate(y_min, "y")
     return i_y
 
+def Divergence(function: Vector, dimensions=3):
+    if dimensions == 2:
+        f1 = copy.deepcopy(function)
+        dx = f1.vals[0].partial("x", 1)
+        f2 = copy.deepcopy(function)
+        dy = f2.vals[1].partial("y", 1)
+        s = dx + dy
+        print(f"{italic}f{reset}({blue}x{reset}, {blue}y{reset}) = {function}")
+        print(f"{nabla}⋅{italic}f{reset}({blue}x{reset}, {blue}y{reset}) = {s}")
+        return s
+
+    if dimensions == 3:
+        f = copy.deepcopy(function)
+        dx = f.vals[0].partial("x", 1)
+        dy = f.vals[1].partial("y", 1)
+        dz = f.vals[2].partial("z", 1)
+        s = dx + dy + dz
+        print(f"{italic}f{reset}({blue}x{reset}, {blue}y{reset}, {blue}z{reset}) = {function}")
+        print(f"{nabla}⋅{italic}f{reset}({blue}x{reset}, {blue}y{reset}, {blue}z{reset}) = {s}")
+        return s
+
+def Curl(function: Vector) -> Vector:
+    f1 = copy.deepcopy(function)
+    Ry = f1.vals[2].partial("y", 1)
+    Qz = f1.vals[1].partial("z", 1)
+    print(f"Ry: {Ry}, Qz: {Qz}")
+
+    f2 = copy.deepcopy(function)
+    Pz = f2.vals[0].partial("z", 1)
+    Rx = f2.vals[2].partial("x", 1)
+
+    f3 = copy.deepcopy(function)
+    Qx = f3.vals[1].partial("x", 1)
+    Py = f3.vals[0].partial("y", 1)
+    v = Vector([Ry - Qz, Pz - Rx, Qx - Py])
+    print(f"{italic}f{reset}({blue}x{reset}, {blue}y{reset}, {blue}z{reset}) = {function}")
+    print(f"{nabla}×{italic}f{reset}({blue}x{reset}, {blue}y{reset}, {blue}z{reset}) = {v}")
+    return v
+
 
 if __name__ == "__main__":
     e1 = ExpTerm()
@@ -429,5 +468,12 @@ if __name__ == "__main__":
     t2 = Product([PolyTerm(1, 1, variable="y"), PolyTerm(1, 1, variable="z")])
     t3 = LogTerm(inner=t2)
     p = Product([t1, t3])
-    Gradient(p)
+    #Gradient(p)
     
+    p1 = Product([PolyTerm(1, 1), PolyTerm(1, 1, variable="z")])
+    p2 = Product([PolyTerm(1, 1), PolyTerm(1, 1, variable="y"), PolyTerm(1, 1, variable="z")])
+    t3 = PolyTerm(-1, 2, variable="y")
+    v = Vector([p1, p2, t3])
+    Divergence(v)
+    v = Vector([p1, p2, t3])
+    Curl(v)

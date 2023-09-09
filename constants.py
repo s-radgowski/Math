@@ -31,6 +31,10 @@ superscript_t = "\u1D57"
 subscript_t = "\u209C"
 superscript_x = "\u02E3"
 subscript_x = "\u2093"
+superscript_y = "\u02B8"
+subscript_y = "\u1D67"
+superscript_z = "\u1DBB"
+subscript_z = "\u1D69"
 superscript_hyp = "\u207B"
 subscript_hyp = "\u208B"
 half_unicode = "\u00BD"
@@ -48,6 +52,10 @@ def superscript(term: str):
             result += blue + superscript_t + reset
         elif c == "x":
             result += blue + superscript_x + reset
+        elif c == "y":
+            result += blue + superscript_y + reset
+        elif c == "z":
+            result += blue + superscript_z + reset
         elif c == "-":
             result += superscript_hyp
 
@@ -65,6 +73,10 @@ def subscript(term: str):
             result += blue + subscript_t + reset
         elif c == "x":
             result += blue + subscript_x + reset
+        elif c == "y":
+            result += blue + subscript_y + reset
+        elif c == "z":
+            result += blue + subscript_z + reset
         elif c == "-":
             result += subscript_hyp
 

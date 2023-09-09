@@ -473,6 +473,16 @@ class Product(Term):
         t.extend(self.others)
         return t
 
+    def __add__(self, other):
+        if other == self:
+            return PolyTerm(2, 1, inner=self)
+        return Sum([self, other])
+
+    def __sub__(self, other):
+        if other == self:
+            return Constant(0)
+        return Sum([self,PolyTerm(-1, 1, other)])
+
     def __eq__(self, other):
         if not isinstance(other, Product):
             return False
@@ -588,6 +598,9 @@ class Product(Term):
             if not t.is_constant():
                 return False
         for t in self.exps:
+            if not t.is_constant():
+                return False
+        for t in self.other_polys:
             if not t.is_constant():
                 return False
         for t in self.others:
@@ -744,6 +757,11 @@ class Product(Term):
 
         relevant_deriv = relevant.partial(var, n)
         other_terms.extend([relevant_deriv])
+        if len(other_terms) == 2:
+            if other_terms[0] == Constant(1):
+                return other_terms[1]
+            elif other_terms[1] == Constant(1):
+                return other_terms[0]
         return Product(other_terms)
 
     """Takes the nth integral of the product."""
@@ -886,8 +904,8 @@ class Product(Term):
                         du = copy.deepcopy(u).derive(1)
                         dv = terms[1]
                         v = copy.deepcopy(dv).integrate(1)
-                        uv = Product([u, v])
-                        vdu = Product([v, du])
+                        uv = u * v
+                        vdu = v * du
                         vdu.multiply(Constant(-1))
                         return Sum([uv, vdu.integrate(n), Variable("C")])
 
@@ -1013,10 +1031,6 @@ class PolyTerm(Term):
         else:
             self.inner = inner
 
-        # Parity of exponent:
-        if self.exp % 2 == 0:
-            self.coeff = abs(self.coeff)
-
         if isinstance(self.coeff, float) and self.coeff.is_integer():
             self.coeff = int(self.coeff)
         if isinstance(self.exp, float) and self.exp.is_integer():
@@ -1039,6 +1053,28 @@ class PolyTerm(Term):
             return Sum([self, other])
         
         new_c = self.coeff + other.coeff
+        if new_c == 0:
+            return Constant(0)
+
+        return PolyTerm(new_c, self.exp, self.inner)
+    
+    def __sub__(self, other):
+        if not isinstance(other, PolyTerm):
+            return Sum([self, PolyTerm(-1, 1, inner=other)])
+        
+        if self.exp != other.exp:
+            # Terms not compatible
+            return Sum([self, PolyTerm(-1, 1, inner=other)])
+        
+        if self.inner != other.inner:
+            # Terms not compatible
+            return Sum([self, PolyTerm(-1, 1, inner=other)])
+        
+        if self.variable != other.variable:
+            # Terms not compatible
+            return Sum([self, PolyTerm(-1, 1, inner=other)])
+        
+        new_c = self.coeff - other.coeff
         if new_c == 0:
             return Constant(0)
 
@@ -1340,6 +1376,14 @@ class PolyTerm(Term):
                 return TrigTerm("tan").integrate(n - 1)
             elif self.exp == 2 and (self.inner == TrigTerm("csc", inner=None)):
                 return Product([Constant(-1), TrigTerm("cot")]).integrate(n - 1)
+            elif self.exp == -1 and isinstance(self.inner, Sum):
+                if len(self.inner.terms) == 2:
+                    t1 = self.inner.terms[0]
+                    t2 = self.inner.terms[1]
+                    if isinstance(t1, Constant) and (t2 == PolyTerm(1, 1)):
+                        return LogTerm(inner=self.inner)
+                    elif isinstance(t2, Constant) and (t1 == PolyTerm(1, 1)):
+                        return LogTerm(inner=self.inner)
 
             elif self.exp > 1:
                 pass
@@ -1583,7 +1627,7 @@ class TrigTerm(Term):
             elif self.fn == "sec":
                 t1 = TrigTerm("sec", inner=None, variable=self.variable)
                 t2 = TrigTerm("tan", inner=None, variable=self.variable)
-                return Product([t1, t2])
+                return t1 * t2
 
             elif self.fn == "cot":
                 t = TrigTerm("csc", inner=None, variable=self.variable)
@@ -1612,7 +1656,7 @@ class TrigTerm(Term):
                 f_prime.inner.inner = self.inner
             else:
                 f_prime.inner = self.inner
-            p = Product([f_prime, g_prime])
+            p = f_prime * g_prime
             return p.derive(n - 1)
 
     """Takes the nth partial derivative of the term with respect to var"""
@@ -1652,7 +1696,7 @@ class TrigTerm(Term):
                 f_prime.inner.inner = self.inner
             else:
                 f_prime.inner = self.inner
-            p = Product([f_prime, g_prime])
+            p = f_prime * g_prime
             return p.partial(var, n - 1)
 
     """Takes the nth integral of the term"""
@@ -1970,7 +2014,7 @@ class LogTerm(Term):
             else:
                 f_prime.inner = self.inner
             
-            p = Product([f_prime, g_prime])
+            p = f_prime * g_prime
             return p.derive(n - 1)
 
     """Takes the nth partial derivative of the term with respect to var"""
@@ -2020,7 +2064,7 @@ class LogTerm(Term):
             return self
 
         elif self.inner is None:
-            p = Product([PolyTerm(1, 1), LogTerm()])
+            p = PolyTerm(1, 1) * LogTerm()
             s = Sum([p, PolyTerm(1, 1), Variable("C")])
             return s
 
@@ -2035,7 +2079,7 @@ class LogTerm(Term):
             return self
 
         elif (self.inner is None) and (self.variable == var):
-            p = Product([PolyTerm(1, 1), LogTerm()])
+            p = PolyTerm(1, 1) * LogTerm()
             s = Sum([p, PolyTerm(1, 1), Variable("C")])
             return s
         
@@ -2312,7 +2356,7 @@ class ExpTerm(Term):
                 f_prime.inner.inner = self.inner
             else:
                 f_prime.inner = self.inner
-            p = Product([f_prime, g_prime])
+            p = f_prime * g_prime
             return p.partial(var, n - 1)
 
     """Takes the nth integral of the term"""
@@ -2470,6 +2514,20 @@ class Sum(Term):
         self.tidy()
         return self
     
+    def __sub__(self, other):
+        if other in self.terms:
+            self.terms.remove(other)
+            return self
+
+        if isinstance(other, Sum):
+            for term in other.terms:
+                self.terms.append(PolyTerm(-1, 1, inner=term))
+        
+        else:
+            self.terms.append(PolyTerm(-1, 1, inner=other))
+        self.tidy()
+        return self
+
     def __pow__(self, other):
         if self.is_constant():
             v = self.evaluate(1)
@@ -2503,7 +2561,7 @@ class Sum(Term):
                 if isinstance(t, Variable):
                     new_terms.append(t)
                 else:
-                    p = Product([other, t])
+                    p = other * t
                     new_terms.append(p)
             self.terms = new_terms
             self.tidy()
@@ -2524,8 +2582,11 @@ class Sum(Term):
         terms = self.terms
         for i in range(n):
             terms = [t.derive(1) for t in terms]
+
         s = Sum(terms)
         s.tidy()
+        if len(s.terms) == 1:
+            return s.terms[0]
         return s
     
     """Takes the nth partial derivative of the sum wtih respect to var"""
@@ -2651,11 +2712,12 @@ if __name__ == "__main__":
     x = PolyTerm(1, 1)
     dv = ExpTerm(inner=PolyTerm(2, 1))
     p = Product([x, dv])
-    p.integral()
 
     t2 = PolyTerm(1, 3)
     t3 = PolyTerm(1, 1, variable="y")
     p = Product([t2, t3])
 
-    print(p)
-    print(p.partial_integrate("y", 1))
+    s = Sum([Constant(3), PolyTerm(1, 1)])
+    p1 = PolyTerm(1, -1, inner=s)
+    print(p1)
+    print(p1.derivative())
