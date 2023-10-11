@@ -455,25 +455,3 @@ def Curl(function: Vector) -> Vector:
     print(f"{italic}f{reset}({blue}x{reset}, {blue}y{reset}, {blue}z{reset}) = {function}")
     print(f"{nabla}×{italic}f{reset}({blue}x{reset}, {blue}y{reset}, {blue}z{reset}) = {v}")
     return v
-
-
-if __name__ == "__main__":
-    e1 = ExpTerm()
-    trig1 = TrigTerm("sin", variable="y")
-    log1 = LogTerm(variable="z")
-    s2 = Sum([e1, trig1, log1])
-    #Gradient(s2)
-
-    t1 = PolyTerm(1, 1, variable="x")
-    t2 = Product([PolyTerm(1, 1, variable="y"), PolyTerm(1, 1, variable="z")])
-    t3 = LogTerm(inner=t2)
-    p = Product([t1, t3])
-    #Gradient(p)
-    
-    p1 = Product([PolyTerm(1, 1), PolyTerm(1, 1, variable="z")])
-    p2 = Product([PolyTerm(1, 1), PolyTerm(1, 1, variable="y"), PolyTerm(1, 1, variable="z")])
-    t3 = PolyTerm(-1, 2, variable="y")
-    v = Vector([p1, p2, t3])
-    Divergence(v)
-    v = Vector([p1, p2, t3])
-    Curl(v)
