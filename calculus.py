@@ -2706,18 +2706,3 @@ class Sum(Term):
 
         # Sort by degree
         self.terms.sort(reverse=True)
-
-
-if __name__ == "__main__":
-    x = PolyTerm(1, 1)
-    dv = ExpTerm(inner=PolyTerm(2, 1))
-    p = Product([x, dv])
-
-    t2 = PolyTerm(1, 3)
-    t3 = PolyTerm(1, 1, variable="y")
-    p = Product([t2, t3])
-
-    s = Sum([Constant(3), PolyTerm(1, 1)])
-    p1 = PolyTerm(1, -1, inner=s)
-    print(p1)
-    print(p1.derivative())

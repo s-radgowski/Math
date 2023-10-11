@@ -5,119 +5,89 @@ import copy
 import math
 
 
+"""Abstract structure for a vector, __init__ input is a list of
+    values, each representing one term in the column vector.
+"""
 class Vector():
     def __init__(self, vals: list):
-        self.vals = vals
-        for i, v in enumerate(vals):
-            if isinstance(v, int) or isinstance(v, float):
-                self.vals[i] = Constant(v)
-
+        self.vals = [Constant(v) if isinstance(v, (int, float)) else v for v in vals]
         self.dimensions = len(vals)
         if self.dimensions == 3:
-            self.i = self.vals[0]
-            self.j = self.vals[0]
-            self.k = self.vals[0]
+            self.i, self.j, self.k = self.vals[0], self.vals[1], self.vals[2]
  
     def __add__(self, other):
-        results = copy.deepcopy(self)
-        if isinstance(other, int) or isinstance(other, float):
-            for i in range(self.dimensions):
-                results.vals[i] += other
-            return results
+        if isinstance(other, (int, float)):
+            results = Vector([v + other for v in self.vals])
         elif isinstance(other, Constant):
-            for i in range(self.dimensions):
-                results.vals[i] += other.val
-            return results
+            results = Vector([v + other.val for v in self.vals])
         elif isinstance(other, Vector):
             if other.dimensions != self.dimensions:
                 raise ValueError("Dimension mismatch in vector addition.")
-            else:
-                for i in range(self.dimensions):
-                    results.vals[i] += other.vals[i]
-                return results
+            results = Vector([v1 + v2 for v1, v2 in zip(self.vals, other.vals)])
+        else:
+            results = None
+        return results
 
     def __sub__(self, other):
-        results = copy.deepcopy(self)
-        if isinstance(other, int) or isinstance(other, float):
-            for i in range(self.dimensions):
-                results.vals[i] -= other
-            return results
+        if isinstance(other, (int, float)):
+            results = Vector([v - other for v in self.vals])
         elif isinstance(other, Constant):
-            for i in range(self.dimensions):
-                results.vals[i] -= other.val
-            return results
+            results = Vector([v - other.val for v in self.vals])
         elif isinstance(other, Vector):
             if other.dimensions != self.dimensions:
-                raise ValueError("Dimension mismatch in vector subtraction.")
-            else:
-                for i in range(self.dimensions):
-                    results.vals[i] -= other.vals[i]
-                return results
+                raise ValueError("Dimension mismatch in vector addition.")
+            results = Vector([v1 - v2 for v1, v2 in zip(self.vals, other.vals)])
+        else:
+            results = None
+        return results
 
     def __mul__(self, other):
-        results = copy.deepcopy(self)
-        if isinstance(other, int) or isinstance(other, float):
-            for i in range(self.dimensions):
-                results.vals[i] *= other
-            return results
+        if isinstance(other, (int, float)):
+            results = Vector([v * other for v in self.vals])
         elif isinstance(other, Constant):
-            for i in range(self.dimensions):
-                results.vals[i] *= other.val
-            return results
+            results = Vector([v * other.val for v in self.vals])
         else:
-            pass
+            results = None
+        return results
     
     def __truediv__(self, other):
-        results = copy.deepcopy(self)
-        if isinstance(other, int) or isinstance(other, float):
-            for i in range(self.dimensions):
-                results.vals[i] /= other
-            return results
+        if isinstance(other, (int, float)):
+            results = Vector([v / other for v in self.vals])
         elif isinstance(other, Constant):
-            for i in range(self.dimensions):
-                results.vals[i] /= other.val
-            return results
+            results = Vector([v / other.val for v in self.vals])
         else:
-            pass
+            results = None
+        return results
 
     def __floordiv__(self, other):
-        results = copy.deepcopy(self)
-        if isinstance(other, int) or isinstance(other, float):
-            for i in range(self.dimensions):
-                results.vals[i] //= other
-            return results
+        if isinstance(other, (int, float)):
+            results = Vector([v // other for v in self.vals])
         elif isinstance(other, Constant):
-            for i in range(self.dimensions):
-                results.vals[i] //= other.val
-            return results
+            results = Vector([v // other.val for v in self.vals])
         else:
-            pass
+            results = None
+        return results
 
     def __mod__(self, other):
-        results = copy.deepcopy(self)
-        if isinstance(other, int) or isinstance(other, float):
-            for i in range(self.dimensions):
-                results.vals[i] %= other
+        if isinstance(other, (int, float)):
+            results = Vector([v % other for v in self.vals])
         elif isinstance(other, Constant):
-            for i in range(self.dimensions):
-                results.vals[i] %= other.val
+            results = Vector([v % other.val for v in self.vals])
+        else:
+            results = None
         return results
     
     def __pow__(self, other):
-        results = copy.deepcopy(self)
-        if isinstance(other, int) or isinstance(other, float):
-            for i in range(self.dimensions):
-                results.vals[i] **= other
-            return results
+        if isinstance(other, (int, float)):
+            results = Vector([v ** other for v in self.vals])
         elif isinstance(other, Constant):
-            for i in range(self.dimensions):
-                results.vals[i] **= other.val
-            return results
+            results = Vector([v ** other.val for v in self.vals])
         else:
-            pass
+            results = None
+        return results
 
     def __repr__(self):
-        return self.__str__()
+        return str(self)
     
     def __str__(self, type="standard"):
         if type == "standard":
@@ -141,25 +111,16 @@ class Vector():
         return vals_text
 
     def standard_row(self):
-        result = left_br
         vals_text = self.contents_text()
-        result += ", ".join(vals_text)
-        result += right_br
-        return result
+        return f"{left_br}{','.join(vals_text)}{right_br}"
     
     def column_vector(self):
-        result = "["
         vals_text = self.contents_text()
-        result += "\n ".join(vals_text)
-        result += "]"
-        return result
+        return "[" + "\n".join(vals_text) + "]"
     
     def row_vector(self):
-        result = "["
         vals_text = self.contents_text()
-        result += "  ".join(vals_text)
-        result += "]"
-        return result
+        return "[" + " ".join(vals_text) + "]"
     
     def basis_vectors(self):
         vals_text = self.contents_text()
@@ -186,7 +147,7 @@ class Vector():
                 result += f"+ {t3}"
             return result
         else:
-            pass
+            return None
 
     """Returns the magnitude of the vector."""
     def magnitude(self) -> float:
@@ -456,24 +417,3 @@ def Curl(function: Vector) -> Vector:
     print(f"{nabla}×{italic}f{reset}({blue}x{reset}, {blue}y{reset}, {blue}z{reset}) = {v}")
     return v
 
-
-if __name__ == "__main__":
-    e1 = ExpTerm()
-    trig1 = TrigTerm("sin", variable="y")
-    log1 = LogTerm(variable="z")
-    s2 = Sum([e1, trig1, log1])
-    #Gradient(s2)
-
-    t1 = PolyTerm(1, 1, variable="x")
-    t2 = Product([PolyTerm(1, 1, variable="y"), PolyTerm(1, 1, variable="z")])
-    t3 = LogTerm(inner=t2)
-    p = Product([t1, t3])
-    #Gradient(p)
-    
-    p1 = Product([PolyTerm(1, 1), PolyTerm(1, 1, variable="z")])
-    p2 = Product([PolyTerm(1, 1), PolyTerm(1, 1, variable="y"), PolyTerm(1, 1, variable="z")])
-    t3 = PolyTerm(-1, 2, variable="y")
-    v = Vector([p1, p2, t3])
-    Divergence(v)
-    v = Vector([p1, p2, t3])
-    Curl(v)
