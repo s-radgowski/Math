@@ -4,6 +4,7 @@
 #include <iterator>
 using namespace std;
  
+/* Reverse bits in an integer */
 unsigned int bitReverse(unsigned int x, int log2n)
 {
     int n = 0;
@@ -19,6 +20,7 @@ unsigned int bitReverse(unsigned int x, int log2n)
 
 const double PI = 3.1415926536;
 template<class Iter_T>
+/* C++ implementation of the Fast Fourier transform */
 void fft(Iter_T a, Iter_T b, int log2n)
 {
     typedef typename iterator_traits<iter_t>::value_type complex;
@@ -52,6 +54,7 @@ void fft(Iter_T a, Iter_T b, int log2n)
     }
 }
 
+/* Main script, sample FFT included below */
 int main(int argc, char **argv)
 {
     typedef complex cx;

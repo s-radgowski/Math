@@ -1,7 +1,7 @@
 from constants import *
 
 """Discrete Fourier Transform for an array of values x."""
-def dft(x):
+def dft(x: list) -> list:
     len_x = len(x)
     base = -2j * PI / len_x
     result = []
@@ -15,7 +15,7 @@ def dft(x):
     return result
 
 """Fast Fourier Transform for an array of values x."""
-def fft(x):
+def fft(x: list) -> list:
     len_x = len(x)
     if len_x % 2 > 0:
         raise ValueError("Array size must a Power of 2")
