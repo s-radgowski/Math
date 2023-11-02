@@ -85,9 +85,14 @@ def subscript(term: str):
 # Linear Algebra symbols
 left_br = "\u3008"
 right_br = "\u3009"
+top_left = "\u2e22"
+top_right = "\u2e23"
+bottom_left = "\u2e24"
+bottom_right = "\u2e25"
 
 # Round floats to how many decimals in printing
 decimals = 4
+rounding_precision = 0.0000000001
 
 # Trigonmetric functions
 TRIG = ["sin", "cos", "tan", "csc", "sec", "cot"]
@@ -98,4 +103,4 @@ INV_TRIG = ["arcsin", "arccos", "arctan", "arccsc", "arcsec", "arccot"]
 # Numerical constants
 EULER = 2.7182818284590452
 PI = 3.1415926535897932
-pi_str = "\u03a0"
+pi_str = "\u03c0"
